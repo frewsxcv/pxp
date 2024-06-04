@@ -10,6 +10,7 @@ $output = <<<'RUST'
 // Do not make modifications to this file directly.
 
 use crate::utils::CommaSeparated;
+use crate::node::Node;
 use pxp_syntax::comments::{CommentGroup, Comment};
 use pxp_type::Type;
 use pxp_token::Token;
@@ -77,6 +78,54 @@ foreach ($ast as $node => $structure) {
     }
 
     $output .= "}\n\n";
+    $output .= "impl Node for {$node} {\n";
+    
+    $output .= sprintf(<<<'RUST'
+    fn name(&self) -> &'static str {
+        "%s"
+    }
+
+
+    RUST, $node);
+
+    $output .= sprintf(<<<'RUST'
+    fn children(&self) -> Vec<&dyn Node> {
+        Vec::new()
+    }
+
+
+    RUST);
+
+    $output .= sprintf(<<<'RUST'
+    fn span(&self) -> Span {
+        Span::default()
+    }
+    RUST);
+
+    if ($commentGroup = get_comment_group_field($structure)) {
+        $output .= sprintf(<<<'RUST'
+        fn comments(&self) -> Option<&CommentGroup> {
+            Some(&self.%s)
+        }
+        RUST, $commentGroup);
+    }
+
+    $output .= "}\n\n";
+}
+
+function get_comment_group_field($structure): string|null
+{
+    if (! is_array($structure)) {
+        return null;
+    }
+
+    foreach ($structure as $field => $type) {
+        if ($type === 'CommentGroup') {
+            return $field;
+        }
+    }
+
+    return null;
 }
 
 file_put_contents(__DIR__ . '/../../crates/pxp-ast/src/generated.rs', $output);
